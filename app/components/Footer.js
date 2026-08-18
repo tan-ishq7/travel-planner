@@ -48,7 +48,7 @@ export default function Footer() {
 
         <div className="footer-bottom">
           <p>© 2026 Travel Threads. Made with ❤️ for Indian Travelers.</p>
-          <p> shivamdhama9650@gmail.com   || +91 9650121086</p>
+          <p> murairtanishq@gmail.com   || +91 8743872050</p>
           <div className="footer-socials">
             <a href="#" className="footer-social" aria-label="Instagram" id="social-instagram">📷</a>
             <a href="#" className="footer-social" aria-label="Twitter" id="social-twitter">🐦</a>
