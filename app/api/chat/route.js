@@ -54,7 +54,7 @@ export async function POST(req) {
         "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "qwen/qwen3.8-27b",
         messages: formattedMessages,
         temperature: 0.7,
         max_tokens: 1024
