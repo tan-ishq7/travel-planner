@@ -1,3 +1,5 @@
+import { createClient } from "./supabase/client";
+
 export const AUTH_STORAGE_KEY = "yatra_auth";
 
 export function getStoredAuth() {
@@ -100,4 +102,74 @@ export async function completeSignIn(session) {
       syncError: err?.message || "Backend sync failed",
     };
   }
+}
+
+/**
+ * Always returns a fresh, valid Supabase access token.
+ * Supabase automatically refreshes the session if the access_token has expired
+ * (using the refresh_token stored in cookies/localStorage).
+ *
+ * Use this instead of getStoredAuth().token before any authenticated API call.
+ * Falls back to the stored token if Supabase client is unavailable.
+ */
+export async function getFreshToken() {
+  try {
+    const supabase = createClient();
+    if (!supabase) {
+      // No Supabase client – return whatever is stored
+      return getStoredAuth().token;
+    }
+
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data?.session?.access_token) {
+      // Session gone – clear stale storage and return empty
+      clearStoredAuth();
+      return "";
+    }
+
+    const freshToken = data.session.access_token;
+
+    // Keep localStorage in sync so getStoredAuth() stays accurate
+    const stored = getStoredAuth();
+    if (stored.token !== freshToken) {
+      setStoredAuth({ token: freshToken, user: stored.user });
+    }
+
+    return freshToken;
+  } catch {
+    return getStoredAuth().token;
+  }
+}
+
+/**
+ * Subscribe to Supabase auth state changes and keep localStorage token fresh.
+ * Call this once in a top-level client component (e.g. Navbar).
+ * Returns an unsubscribe function.
+ */
+export function setupTokenRefresh() {
+  const supabase = createClient();
+  if (!supabase) return () => {};
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    async (event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
+        clearStoredAuth();
+        return;
+      }
+
+      if (
+        event === "SIGNED_IN" ||
+        event === "TOKEN_REFRESHED" ||
+        event === "USER_UPDATED"
+      ) {
+        const stored = getStoredAuth();
+        const freshToken = session.access_token;
+        if (stored.token !== freshToken) {
+          setStoredAuth({ token: freshToken, user: stored.user || buildUserFromSupabaseSession(session) });
+        }
+      }
+    }
+  );
+
+  return () => subscription.unsubscribe();
 }

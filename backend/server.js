@@ -36,23 +36,26 @@ const razorpay =
 const dataPath = path.join(__dirname, "data", "destinations.json");
 const packagesPath = path.join(__dirname, "data", "packages.json");
 
-// Define the allowed frontend URLs
-const allowedOrigins = [
-  "http://localhost:3000", // For local development
-  "https://travel-planner-five-lime.vercel.app" // Your live Vercel site
-];
+// Define the allowed frontend URLs via env var (comma-separated) with local fallback
+const allowedOrigins = (
+  process.env.ALLOWED_ORIGINS ||
+  "http://localhost:3000,https://travel-planner-five-lime.vercel.app"
+)
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
 
 // Configure CORS
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
+
     // Check if the origin is in our allowed list
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error(`CORS: origin '${origin}' not allowed`));
     }
   },
   credentials: true // Crucial if your app uses cookies or authorization headers

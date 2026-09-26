@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { clearStoredAuth, getStoredAuth, setStoredAuth, syncProfileWithBackend } from "../lib/auth";
+import { clearStoredAuth, getStoredAuth, setStoredAuth, syncProfileWithBackend, setupTokenRefresh } from "../lib/auth";
 import { createClient } from "../lib/supabase/client";
 
 export default function Navbar() {
@@ -55,9 +55,14 @@ export default function Navbar() {
     syncAuth();
     window.addEventListener("yatra-auth-changed", syncAuth);
     window.addEventListener("storage", syncAuth);
+
+    // Keep the stored access token fresh whenever Supabase silently refreshes it
+    const unsubscribeRefresh = setupTokenRefresh();
+
     return () => {
       window.removeEventListener("yatra-auth-changed", syncAuth);
       window.removeEventListener("storage", syncAuth);
+      unsubscribeRefresh();
     };
   }, []);
 

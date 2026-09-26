@@ -7,7 +7,7 @@ import Link from "next/link";
 import Script from "next/script";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { getStoredAuth } from "../lib/auth";
+import { getStoredAuth, getFreshToken } from "../lib/auth";
 import { normalizeImageUrl } from "../lib/images";
 import localDestinations from "../../backend/data/destinations.json";
 
@@ -152,7 +152,10 @@ function CheckoutForm() {
 
   const handlePayment = async () => {
     setPaymentError("");
-    if (!auth.token) {
+
+    // Always get a fresh (auto-refreshed) token — the stored token may be expired
+    const freshToken = await getFreshToken();
+    if (!freshToken) {
       setPaymentError("You must be logged in to book a trip.");
       return;
     }
@@ -182,7 +185,7 @@ function CheckoutForm() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${auth.token}`,
+          Authorization: `Bearer ${freshToken}`,
         },
         body: JSON.stringify({
           amount: totalAmount * 100,
@@ -223,11 +226,13 @@ function CheckoutForm() {
         },
         handler: async (response) => {
           try {
+            // Re-fetch fresh token — user may have spent minutes in the payment modal
+            const verifyToken = await getFreshToken() || freshToken;
             const verifyRes = await fetch(`${API}/api/verify-payment`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${auth.token}`,
+                Authorization: `Bearer ${verifyToken}`,
               },
               body: JSON.stringify({
                 razorpay_order_id: response.razorpay_order_id,

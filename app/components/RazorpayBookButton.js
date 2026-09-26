@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Script from "next/script";
-import { getStoredAuth } from "../lib/auth";
+import { getStoredAuth, getFreshToken } from "../lib/auth";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -22,8 +22,11 @@ export default function RazorpayBookButton({
     setMessage("");
     setMessageType("");
 
+    // Always get a fresh (auto-refreshed) token — stored token may be expired
+    const freshToken = await getFreshToken();
     const auth = getStoredAuth();
-    if (!auth?.token) {
+
+    if (!freshToken) {
       const next = typeof window !== "undefined" ? window.location.pathname : "/";
       window.location.href = `/login?error=${encodeURIComponent(
         "Please login to book and pay."
@@ -60,7 +63,7 @@ export default function RazorpayBookButton({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${auth.token}`,
+            Authorization: `Bearer ${freshToken}`,
           },
           body: JSON.stringify({
             amount: amountPaise,
@@ -99,11 +102,13 @@ export default function RazorpayBookButton({
         order_id,
         handler: async (response) => {
           try {
+            // Re-fetch a fresh token at verify time too — payment modal can take minutes
+            const verifyToken = await getFreshToken() || freshToken;
             const verifyRes = await fetch(`${API}/api/verify-payment`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${auth.token}`,
+                Authorization: `Bearer ${verifyToken}`,
               },
               body: JSON.stringify({
                 razorpay_order_id: response.razorpay_order_id,
